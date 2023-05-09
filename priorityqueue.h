@@ -1,0 +1,586 @@
+// priorityqueue.h
+//
+// Syed Mehdi        UIN 651624073        NetID: smehd2
+// This file is is the abstraction of a priority queue that can be used for 
+// many things.
+#pragma once
+
+#include <iostream>
+#include <sstream>
+#include <fstream>//originally for tests
+#include <set>
+#include <array>//for tests
+
+using namespace std;
+
+template<typename T>
+class priorityqueue {
+private:
+    struct NODE {
+        int priority;  // used to build BST
+        T value;  // stored data for the p-queue
+        bool dup;  // marked true when there are duplicate priorities
+        NODE* parent;  // links back to parent
+        NODE* link;  // links to linked list of NODES with duplicate priorities
+        NODE* left;  // links to left child
+        NODE* right;  // links to right child
+    };
+    NODE* root;  // pointer to root node of the BST
+    int size;  // # of elements in the pqueue
+    NODE* curr;  // pointer to next item in pqueue (see begin and next)
+    
+public:
+    //
+    // default constructor:
+    //
+    // Creates an empty priority queue.
+    // O(1)
+    //
+    priorityqueue() {
+        
+        //NODE initializations
+        this->root = new NODE; 
+        root->priority = NULL;
+        root->parent = nullptr;
+        root->dup = false;
+        root->left = nullptr;
+        root->right = nullptr;
+        root->link = nullptr;
+        //root->value = NULL;
+        //rest of pq 
+        this->size = 0;
+        this->curr = nullptr;
+    }
+    
+    //
+    // operator=
+    //
+    // Clears "this" tree and then makes a copy of the "other" tree.
+    // Sets all member variables appropriately.
+    // O(n), where n is total number of nodes in custom BST
+    //
+    
+    //recursive function that copies tree (pre order)
+    void copyRecurse(NODE* q){
+        if(!q)//if q == nullptr
+            return;
+        enqueue(q->value, q->priority);//copy element before traversing
+        NODE* temp = q;
+        while(temp->link!= nullptr){//copy duplicates
+            enqueue(temp->link->value, temp->link->priority);
+            temp = temp->link;
+        }
+        copyRecurse(q->left);//copy left
+        copyRecurse(q->right);//copy right
+    }
+    
+    priorityqueue& operator=(const priorityqueue& other) {
+        
+        //clear current contents
+        clear();
+        
+        //recursive helper 
+        copyRecurse(other.root);
+        //set size to other's size
+        this->size = other.size;
+        
+        return *this;
+    }
+    
+    //
+    // clear:
+    //
+    // Frees the memory associated with the priority queue but is public.
+    // O(n), where n is total number of nodes in custom BST
+    //
+    //Deletes linked list of duplicates
+    void clearLinks(NODE *p){
+        if(p == nullptr){
+            return;
+        }
+        else{
+            clearLinks(p->link);
+            delete p;
+        }
+    }
+    //recursive helper to delete nodes (also used for destructor)
+    void clearRecurse(NODE* p){
+        //NODE *temp;
+        if(p == nullptr){
+            return;
+        }
+        else{
+            clearRecurse(p->left);
+            clearRecurse(p->right);
+            if(p->dup == true){
+                clearLinks(p->link);
+            }
+            delete p;
+        }
+    }
+
+    void clear() {
+        NODE* p = this->root;
+        clearRecurse(p);
+        this->size = 0;
+        this->root = new NODE;//for reuse
+        this->root->left = nullptr;
+        this->root->right = nullptr;
+        this->root->dup = false;
+        this->root->link = nullptr;
+        this->root->parent = nullptr;
+        this->root->priority = NULL;
+        
+    }
+    
+    //
+    // destructor:
+    //
+    // Frees the memory associated with the priority queue.
+    // O(n), where n is total number of nodes in custom BST
+    //
+    
+    ~priorityqueue() {
+        
+        this->clearRecurse(this->root);
+    }
+    
+    //
+    // enqueue:
+    //
+    // Inserts the value into the custom BST in the correct location based on
+    // priority.
+    // O(logn + m), where n is number of unique nodes in tree and m is number of
+    // duplicate priorities
+    //
+    void enqueue(T value, int priority) {
+        
+        
+        // TO DO: write this function.
+        NODE* p = this->root;
+        if(this->size  == 0 ){//if there is nothing in the BST
+            this->root->priority = priority;
+            this->root->value = value;
+            this->root->dup = false;
+            this->root->left = nullptr;
+            this->root->right = nullptr;
+            this->root->parent = nullptr;
+            this->size++;
+            return;
+        }
+        else{
+            int add = this->size+1;
+            while(this->size != add){//while we dont add a value
+                if(priority == p->priority){//if current priority is equal to input priority
+                    p->dup = true;
+                    while(p->link != nullptr){
+                        p = p->link;//go until end of linked list of current node
+                    }
+                    //create node for input
+                    p->link = new NODE;
+                    p->link->value = value;
+                    p->link->priority = priority;
+                    p->link->left = nullptr;
+                    p->link->right = nullptr;
+                    p->link->link = nullptr;
+                    p->link->dup = true;
+                    //parent of link is nullptr (until head of linked list is dequeued)
+                    p->link->parent = nullptr;
+                    this->size++;
+                }
+                else if(priority < p->priority){
+                    if(p->left != nullptr){//if left is not empty
+                        p = p->left;//continue left
+                        continue;
+                    }
+                    else{//if left child is empty
+                        p->left = new NODE;
+                        p->left->parent = p;
+                        p = p->left;
+                        p->left = nullptr;
+                        p->right = nullptr;
+                        p->value = value;
+                        p->priority = priority;
+                        p->link = nullptr;
+                        p->dup = false;
+                        this->size++;
+                    }
+                }
+                else if(priority > p->priority){
+                    if(p->right != nullptr){//if right is not empty
+                        p = p->right;//continue right
+                        continue;
+                    }
+                    else{
+                        p->right = new NODE;
+                        p->right->parent = p;
+                        p = p->right;
+                        p->left = nullptr;
+                        p->right = nullptr;
+                        p->value = value;
+                        p->priority = priority;
+                        p->link = nullptr;
+                        p->dup = false;
+                        this->size++;
+                    }
+                }
+            }
+        }
+        
+        
+    }
+    //
+    // dequeue:
+    //
+    // returns the value of the next element in the priority queue and removes
+    // the element from the priority queue.
+    // O(logn + m), where n is number of unique nodes in tree and m is number of
+    // duplicate priorities
+    //
+    T dequeue() {
+        T valueOut;
+        if(this->size == 0){//if empty
+            throw out_of_range("empty queue");
+        }
+        this->begin();//go to first inorder node (which will be deleted)
+        NODE* p = this->curr;//sets p to node that will be deleted
+        int x;
+        this->next(valueOut, x);//shifts curr to next in order
+        if(this->curr == nullptr){//if one item left in tree
+            delete p;
+            this->root = nullptr;
+            this->size--;
+            return valueOut;
+        }
+        if(p == this->root){//if p is the root
+            if(this->curr->parent == p){//if curr is child of root
+                this->root = this->curr;
+                this->curr->parent = nullptr;
+            }
+            else if(p->link == this->curr){//if curr is duplicate of root
+                this->root = this->curr;
+                this->curr->right = p->right;
+                this->curr->left = p->left;
+            }
+            else{
+                this->root = this->root->right;
+                this->root->parent = nullptr;
+            }
+            delete p;
+            this->size--;
+            return valueOut;
+        }
+        if(p->link == this->curr){//if curr is a duplicate of p
+            this->curr->parent = p->parent;//curr's parent is p's old parent
+            //curr get's p's children
+            this->curr->right = p->right;
+            this->curr->left = p->left;
+
+            if(p->parent->right == p){//if p was the right child
+                p->parent->right = this->curr;//new right child
+            }
+            else{
+                p->parent->left = this->curr;//new left child
+            }
+        }
+        else{
+            if(this->curr == p->parent){//if curr is p's parent(which means p has no links)
+                p->parent->left = nullptr;
+            }
+            if(p->right && p->parent){//if p has right-subtree
+                if(p->parent->left == p){//if p is left child
+                    p->parent->left = p->right;//set right subtree to left child of parent
+                    p->right->parent = p->parent;
+                }
+                //NOTE: p cannot be a right child of anything, as anything before would already be dequeued
+            }
+        }
+        delete p;
+        this->size--;
+        return valueOut; 
+    }
+    
+    //
+    // Size:
+    //
+    // Returns the # of elements in the priority queue, 0 if empty.
+    // O(1)
+    //
+    int Size() {
+        
+        
+        return this->size; 
+        
+        
+    }
+    
+    //
+    // begin
+    //
+    // Resets internal state for an inorder traversal.  After the
+    // call to begin(), the internal state denotes the first inorder
+    // node; this ensure that first call to next() function returns
+    // the first inorder node value.
+    //
+    // O(logn), where n is number of unique nodes in tree
+    //
+    // Example usage:
+    //    pq.begin();
+    //    while (tree.next(value, priority)) {
+    //      cout << priority << " value: " << value << endl;
+    //    }
+    //    cout << priority << " value: " << value << endl;
+
+    NODE* _begin(NODE* p){
+        if(p->left == nullptr){
+            return p;
+        }
+        else{
+           return _begin(p->left);//goes to left most node
+        }
+    }
+    void begin() {
+        if(this->size == 0){//if empty tree
+            this->curr = this->root;
+        }
+        else{
+            this->curr = _begin(this->root);//get left most item
+        }
+
+    }
+    
+    //
+    // next
+    //
+    // Uses the internal state to return the next inorder priority, and
+    // then advances the internal state in anticipation of future
+    // calls.  If a value/priority are in fact returned (via the reference
+    // parameter), true is also returned.
+    //
+    // False is returned when the internal state has reached null,
+    // meaning no more values/priorities are available.  This is the end of the
+    // inorder traversal.
+    //
+    // O(logn), where n is the number of unique nodes in tree
+    //
+    // Example usage:
+    //    pq.begin();
+    //    while (pq.next(value, priority)) {
+    //      cout << priority << " value: " << value << endl;
+    //    }
+    //    cout << priority << " value: " << value << endl;
+    //
+    //function to find the beginning of linked list (only applied when this->curr is at the end of a linked list)
+    NODE* _next(NODE* p, int priority){
+        if(p->priority == priority){
+            return p;
+        }
+        else{
+            if(priority < p->priority){
+                return _next(p->left, priority);
+            }
+            return _next(p->right, priority);
+        }
+    }
+    NODE* getMin(NODE* p){//get min of subtree
+        if(p->left == nullptr){
+            return p;
+        }
+        return getMin(p->left);
+    }
+    NODE* getParent(NODE* p, int &curVal){//function to get ancestor node that is greater than curr
+        if(p->parent == nullptr){
+            return nullptr;
+        }
+        if(p->parent->priority > curVal){
+            return p->parent;
+        }
+        return getParent(p->parent, curVal);
+    }   
+    bool next(T& value, int &priority) {
+        if(this->size == 0){
+            return false;
+        }
+        if(this->curr){//if curr exists, set return values
+            value = this->curr->value;
+            priority = this->curr->priority;
+        }
+        else{
+            return false;
+        }
+        if(this->curr->dup  == true){//if there are duplicates
+            if(this->curr->link == nullptr){//if at the end of linked list
+                NODE *p = _next(this->root, priority);//get first node of linked list
+                this->curr = p;
+            }
+            else{
+                this->curr = this->curr->link;//go to next link
+                return true;
+            }
+        }
+        if(this->curr->right == nullptr){//if right subtree is empty
+            if(this->curr->parent == nullptr){//if no parent
+                this->curr = nullptr;
+                return false;
+            }
+            int parentVal = this->curr->parent->priority;
+            int currVal = this->curr->priority;
+            if(parentVal > currVal){//if parent > current
+                this->curr = this->curr->parent;//set curr to parent
+            }
+            else{//if parent<curr
+                this->curr = getParent(this->curr, currVal);//keep going until parent > curr
+                if(this->curr == nullptr){//if at the end
+                     return false;
+                }
+            }
+        }
+        else{
+            this->curr = this->curr->right;//right sub tree
+            this->curr = getMin(this->curr);//get min of subtree
+        }
+        return true; 
+    }
+    
+    //
+    // toString:
+    //
+    // Returns a string of the entire priority queue, in order.  Format:
+    // "1 value: Ben
+    //  2 value: Jen
+    //  2 value: Sven
+    //  3 value: Gwen"
+    //
+    //helper function for toString, recursivley goes through tree in Depth-First Manner 
+    //an ostream is the output in which the toString is streamed into
+    void toStringDFS(NODE* p, ostream &output){
+        NODE *temp;
+        if(p == nullptr){
+            return;
+        }
+        else{
+            toStringDFS(p->left,output);
+            //if something is in left node 
+            output << p->priority <<" value: "<<p->value<<endl;
+            if(p->dup == true){//if there are links
+                temp = p;
+                while(temp->link != nullptr){
+                    temp = temp->link;
+                    output<<temp->priority << " value: " << temp->value<<endl;
+                    //add links to output
+                }
+            }
+            toStringDFS(p->right,output);
+        }
+    }
+    string toString() {
+        
+        
+        stringstream ss;//chosen mode of output stream
+        NODE* p = this->root;
+        NODE* temp; 
+        if(this->size >= 1){//if has at least one node 
+            toStringDFS(p, ss);
+        }
+        return ss.str(); 
+    }
+    
+    //
+    // peek:
+    //
+    // returns the value of the next element in the priority queue but does not
+    // remove the item from the priority queue.
+    // O(logn + m), where n is number of unique nodes in tree and m is number of
+    // duplicate priorities
+    //
+    T peek() {
+        
+        
+        // TO DO: write this function.
+        T valueOut;
+        if(this->size == 0){
+            throw out_of_range("empty tree");
+        }
+        this->begin();//get next item in queue 
+        valueOut = this->curr->value;
+        return valueOut;
+        
+    }
+    
+    //
+    // ==operator
+    //
+    // Returns true if this priority queue as the priority queue passed in as
+    // other.  Otherwise returns false.
+    // O(n), where n is total number of nodes in custom BST
+    //
+    //helper function that checks if the linked list of a node containing duplicates is identical to this*
+    bool checkLinks(NODE* p, NODE* q)const{
+        if(p == nullptr && q == nullptr){//if both empty
+            return true;
+        }
+        if(p == nullptr){//if one of them are empty
+            return false;
+        }
+        if(q == nullptr){
+            return false;
+        }
+        if(p->dup != q->dup){//if they have differing values
+            return false;
+        }
+        if(p->dup == false){//if there are no dups
+            return true;
+        }
+        if(p->value == q->value && q->priority == p->priority && checkLinks(p->link, q->link)){//if values match for all links
+            return true;
+        }
+        else{
+            return false;
+        }
+
+        
+    }
+    //recursive helper for ==
+    //checks if shape, values, priorities are all consistent
+    bool equal(NODE* p, NODE* q) const{
+        if(p == nullptr && q == nullptr){//if both nodes are empty
+            return true;
+        }
+        else if(p == nullptr){//if one of them are empty
+            return false;
+        }
+        else if(q == nullptr){
+            return false;
+        }
+        else{
+            if(equal(p->left, q->left) && p->value == q->value && p->priority == q->priority && checkLinks(p->link,q->link) && equal(p->right, q->right)){
+                //goes in order and checks if values and priorities match up every time, as well as their links
+                return true;
+            }
+            else{
+                return false;
+            }
+        }
+    }
+    bool operator==(const priorityqueue& other) const {
+        
+        NODE* p = this->root;
+        NODE* q = other.root;
+        bool check = this->equal(p, q);
+        return check;
+        
+    }
+    
+    //
+    // getRoot - Do not edit/change!
+    //
+    // Used for testing the BST.
+    // return the root node for testing.
+    //
+    NODE* getCurr(){//written for my own tests
+        return curr;
+    }
+    void* getRoot() {
+        return root;
+    }
+};
